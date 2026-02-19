@@ -56,11 +56,25 @@ sm_session = sagemaker.Session(boto_session=session)
 df_features = extract_features()
 
 MODEL_INFO = {
-        "endpoint": aws_endpoint,
-        "explainer": 'explainer.shap',
-        "pipeline": 'finalized_model.tar.gz',
-        "keys": ["GOOGL", "IBM", "DEXJPUS", "DEXUSUK", "SP500", "DJIA", "VIXCLS"],
-        "inputs": [{"name": k, "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01} for k in ["GOOGL", "IBM", "DEXJPUS", "DEXUSUK", "SP500", "DJIA", "VIXCLS"]]
+    "endpoint": aws_endpoint,
+    "explainer": 'explainer.shap',
+    "pipeline": 'finalized_model.tar.gz',
+    # ADDED THE 4 NEW FEATURE KEYS
+    "keys": ["GOOGL", "IBM", "DEXJPUS", "DEXUSUK", "SP500", "DJIA", "VIXCLS", "AAPL_SMA_14", "AAPL_Volatility", "AAPL_Momentum_14", "Is_Quarter_End"],
+    # EXPANDED INPUTS TO HANDLE THE DIFFERENT RANGES OF THE NEW FEATURES
+    "inputs": [
+        {"name": "GOOGL", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01},
+        {"name": "IBM", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01},
+        {"name": "DEXJPUS", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01},
+        {"name": "DEXUSUK", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01},
+        {"name": "SP500", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01},
+        {"name": "DJIA", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01},
+        {"name": "VIXCLS", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01},
+        {"name": "AAPL_SMA_14", "type": "number", "min": 0.0, "max": 500.0, "default": 150.0, "step": 1.0},
+        {"name": "AAPL_Volatility", "type": "number", "min": 0.0, "max": 50.0, "default": 2.0, "step": 0.5},
+        {"name": "AAPL_Momentum_14", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01},
+        {"name": "Is_Quarter_End", "type": "number", "min": 0.0, "max": 1.0, "default": 0.0, "step": 1.0}
+    ]
 }
 
 def load_pipeline(_session, bucket, key):
@@ -151,6 +165,7 @@ if submitted:
         display_explanation(input_df,session, aws_bucket)
     else:
         st.error(res)
+
 
 
 
