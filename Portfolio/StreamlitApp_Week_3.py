@@ -59,9 +59,7 @@ MODEL_INFO = {
     "endpoint": aws_endpoint,
     "explainer": 'explainer.shap',
     "pipeline": 'finalized_model.tar.gz',
-    # ADDED THE 4 NEW FEATURE KEYS
     "keys": ["GOOGL", "IBM", "DEXJPUS", "DEXUSUK", "SP500", "DJIA", "VIXCLS", "AAPL_SMA_14", "AAPL_Volatility", "AAPL_Momentum_14", "Is_Quarter_End"],
-    # EXPANDED INPUTS TO HANDLE THE DIFFERENT RANGES OF THE NEW FEATURES
     "inputs": [
         {"name": "GOOGL", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01},
         {"name": "IBM", "type": "number", "min": -1.0, "max": 1.0, "default": 0.0, "step": 0.01},
@@ -165,6 +163,7 @@ if submitted:
         display_explanation(input_df,session, aws_bucket)
     else:
         st.error(res)
+
 
 
 
