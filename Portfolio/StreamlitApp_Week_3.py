@@ -122,13 +122,34 @@ def display_explanation(input_df):
     st.subheader("Decision Transparency (SHAP)")
     if model:
         try:
-            explainer = shap.LinearExplainer(model, df_features)
-            shap_values = explainer.shap_values(input_df.values[-1].reshape(1, -1))
+            # 1. Unpack the Pipeline (Extract Scaler and Model)
+            if hasattr(model, 'named_steps'):
+                step_names = list(model.named_steps.keys())
+                scaler = model.named_steps[step_names[0]]
+                regressor = model.named_steps[step_names[-1]]
+                
+                # Scale the background data and the user's live input
+                scaled_bg = scaler.transform(df_features)
+                scaled_input = scaler.transform(input_df.values[-1].reshape(1, -1))
+            else:
+                regressor = model
+                scaled_bg = df_features.values
+                scaled_input = input_df.values[-1].reshape(1, -1)
+
+            # 2. Generate the Explainer and SHAP values
+            explainer = shap.LinearExplainer(regressor, scaled_bg)
+            shap_values = explainer.shap_values(scaled_input)
+
+            # 3. Draw the Graph
             fig, ax = plt.subplots(figsize=(10, 4))
-            shap.summary_plot(shap_values, input_df.values[-1].reshape(1, -1), feature_names=MODEL_INFO["keys"], show=False)
+            
+            # Use bar plot to show the impact of the live inputs clearly
+            shap.summary_plot(shap_values, scaled_input, feature_names=MODEL_INFO["keys"], plot_type="bar", show=False)
+            
             st.pyplot(fig)
+            
         except Exception as e:
-            st.info("SHAP plot generated in notebook. (Requires specific scaler for live UI).")
+            st.error(f"Graph Generation Error: {str(e)}")
     else:
         st.info("Live SHAP requires active model download. Proceeding with UI demonstration.")
 
@@ -170,3 +191,4 @@ if submitted:
             
     except Exception as e:
         st.error(f"Data matching error occurred: {e}")
+
