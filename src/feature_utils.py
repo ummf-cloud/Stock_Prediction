@@ -57,7 +57,6 @@ def extract_features():
     
     return features
 
-
 def get_bitcoin_historical_prices(days = 60):
     
     BASE_URL = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart"
@@ -74,5 +73,6 @@ def get_bitcoin_historical_prices(days = 60):
     df['Date'] = pd.to_datetime(df['Timestamp'], unit='ms').dt.normalize()
     df = df[['Date', 'Close Price (USD)']].set_index('Date')
     return df
+
 
 
