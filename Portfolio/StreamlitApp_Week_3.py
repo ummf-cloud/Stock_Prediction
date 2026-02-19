@@ -136,22 +136,26 @@ def display_explanation(input_df):
                 scaled_bg = df_features.values
                 scaled_input = input_df.values[-1].reshape(1, -1)
 
-            # 2. Generate the Explainer and SHAP values
-            explainer = shap.LinearExplainer(regressor, scaled_bg)
-            shap_values = explainer.shap_values(scaled_input)
+            # 2. Generate the SHAP Explanation Object (Required for Waterfall plots)
+            explainer = shap.Explainer(regressor, scaled_bg, feature_names=MODEL_INFO["keys"])
+            shap_values = explainer(scaled_input)
 
-            # 3. Draw the Graph
-            fig, ax = plt.subplots(figsize=(10, 4))
+            # 3. Safely capture and draw the graph for Streamlit
+            fig = plt.figure(figsize=(10, 5))
             
-            # Use bar plot to show the impact of the live inputs clearly
-            shap.summary_plot(shap_values, scaled_input, feature_names=MODEL_INFO["keys"], plot_type="bar", show=False)
+            # Draw the waterfall plot
+            shap.plots.waterfall(shap_values[0], max_display=10, show=False)
             
-            st.pyplot(fig)
+            # Force Streamlit to render the current active figure
+            st.pyplot(plt.gcf())
+            
+            # Clear the figure memory so it doesn't overlap on the next run
+            plt.clf()
             
         except Exception as e:
             st.error(f"Graph Generation Error: {str(e)}")
     else:
-        st.info("Live SHAP requires active model download. Proceeding with UI demonstration.")
+        st.warning("⚠️ AWS S3 Download Failed: Live SHAP requires the active model to be downloaded. Please check your AWS Lab credentials.")
 
 # ==========================================
 # 4. STREAMLIT UI
@@ -191,4 +195,5 @@ if submitted:
             
     except Exception as e:
         st.error(f"Data matching error occurred: {e}")
+
 
