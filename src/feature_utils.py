@@ -20,7 +20,7 @@ def extract_features():
     START_DATE = (datetime.date.today() - datetime.timedelta(days=365)).strftime("%Y-%m-%d")
     END_DATE = datetime.date.today().strftime("%Y-%m-%d")
     
-    # CHANGED MSFT TO AAPL
+    # AAPL updated here
     stk_tickers = ['AAPL', 'IBM', 'GOOGL']
     ccy_tickers = ['DEXJPUS', 'DEXUSUK']
     idx_tickers = ['SP500', 'DJIA', 'VIXCLS']
@@ -29,7 +29,7 @@ def extract_features():
     ccy_data = web.DataReader(ccy_tickers, 'fred', start=START_DATE, end=END_DATE)
     idx_data = web.DataReader(idx_tickers, 'fred', start=START_DATE, end=END_DATE)
 
-    # CHANGED MSFT TO AAPL
+    # AAPL future returns
     Y = np.log(stk_data.loc[:, ('Adj Close', 'AAPL')]).diff(return_period).shift(-return_period)
     Y.name = 'AAPL_Future'
     
@@ -40,7 +40,7 @@ def extract_features():
 
     X = pd.concat([X1, X2, X3], axis=1)
     
-    # ADDED THE 4 NEW FEATURES
+    # The 4 NEW features
     X['AAPL_SMA_14'] = stk_data.loc[:, ('Adj Close', 'AAPL')].rolling(window=14).mean()
     X['AAPL_Volatility'] = stk_data.loc[:, ('High', 'AAPL')] - stk_data.loc[:, ('Low', 'AAPL')]
     X['AAPL_Momentum_14'] = stk_data.loc[:, ('Adj Close', 'AAPL')].pct_change(14)
@@ -53,7 +53,7 @@ def extract_features():
     
     features = dataset.sort_index()
     features = features.reset_index(drop=True)
-    features = features.iloc[:,1:] # Drops the Y column so only X features are returned
+    features = features.iloc[:,1:]
     
     return features
 
@@ -73,6 +73,7 @@ def get_bitcoin_historical_prices(days = 60):
     df['Date'] = pd.to_datetime(df['Timestamp'], unit='ms').dt.normalize()
     df = df[['Date', 'Close Price (USD)']].set_index('Date')
     return df
+
 
 
 
