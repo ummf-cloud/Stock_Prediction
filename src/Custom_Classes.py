@@ -99,32 +99,36 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X, y=None):
-        # Convert to DataFrame if it comes in as a numpy array from the pipeline
         if isinstance(X, np.ndarray):
             X_ = pd.DataFrame(X, columns=['Close'])
         else:
             X_ = X.copy()
             
+        new_features = [] # Keep a list of exactly what we create
+        
         for w in self.windows:
-            # 1. MACD (Approximation using fast and slow EMAs)
+            # 1. MACD
             ema_fast = X_['Close'].ewm(span=w, adjust=False).mean()
             ema_slow = X_['Close'].ewm(span=w*2, adjust=False).mean()
             X_[f'MACD_{w}'] = ema_fast - ema_slow
+            new_features.append(f'MACD_{w}')
 
-            # 2. Bollinger Band Width (Volatility)
+            # 2. Bollinger Band Width
             sma = X_['Close'].rolling(window=w).mean()
             std = X_['Close'].rolling(window=w).std()
             X_[f'BB_Width_{w}'] = (sma + (std * 2)) - (sma - (std * 2))
+            new_features.append(f'BB_Width_{w}')
 
             # 3. Rate of Change (ROC)
             X_[f'ROC_{w}'] = X_['Close'].pct_change(periods=w) * 100
+            new_features.append(f'ROC_{w}')
 
             # 4. Momentum (MOM)
             X_[f'MOM_{w}'] = X_['Close'].diff(periods=w)
+            new_features.append(f'MOM_{w}')
 
-        # Drop the original 'Close' column so the model only learns from the indicators
-        X_ = X_.drop(columns=['Close'])
-        return X_.values
+        # ONLY return the 4 exact features we just created
+        return X_[new_features].values
 
 class PairFeatureEngineer(BaseEstimator, TransformerMixin):
     def __init__(self, window=60):
@@ -202,3 +206,4 @@ class PairFeatureEngineer(BaseEstimator, TransformerMixin):
 # extractor = PairFeatureExtractor(window=60)
 
 # features_df = extractor.transform(data['AAPL'], data['MSFT'])
+
