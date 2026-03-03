@@ -87,57 +87,44 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
             X = pd.DataFrame(X)
         return X[self.features_to_keep]
 
+import pandas as pd
+import numpy as np
+from sklearn.base import BaseEstimator, TransformerMixin
+
 class FeatureEngineer(BaseEstimator, TransformerMixin):
-    
-    def __init__(self, windows=[5, 10, 20]):
-        """
-        Initialize with a list of windows. 
-        Example: FeatureEngineer(windows=[5, 14, 30])
-        """
+    def __init__(self, windows=[10]):
         self.windows = windows
 
     def fit(self, X, y=None):
         return self
 
-    def transform(self, X):
-        # Handle input types
+    def transform(self, X, y=None):
+        # Convert to DataFrame if it comes in as a numpy array from the pipeline
         if isinstance(X, np.ndarray):
-            X_df = pd.DataFrame(X)
+            X_ = pd.DataFrame(X, columns=['Close'])
         else:
-            X_df = X.copy()
-
-        # Ensure we are working with a Series for rolling/diff operations
-        # squeeze() is used if X_df is a single-column DataFrame
-        data = X_df.squeeze()
-        X_out = pd.DataFrame(index=X_df.index)
-        
-        # Iterate through each window to create multi-scale features
+            X_ = X.copy()
+            
         for w in self.windows:
-            
-            # 1. Exponential Moving Average
-            X_out[f'EMA_{w}'] = data.ewm(span=w, min_periods=w).mean()
+            # 1. MACD (Approximation using fast and slow EMAs)
+            ema_fast = X_['Close'].ewm(span=w, adjust=False).mean()
+            ema_slow = X_['Close'].ewm(span=w*2, adjust=False).mean()
+            X_[f'MACD_{w}'] = ema_fast - ema_slow
 
-            # 2. Rate of Change
-            M = data.diff(w - 1)
-            N = data.shift(w - 1)
-            X_out[f'ROC_{w}'] = (M / N) * 100
+            # 2. Bollinger Band Width (Volatility)
+            sma = X_['Close'].rolling(window=w).mean()
+            std = X_['Close'].rolling(window=w).std()
+            X_[f'BB_Width_{w}'] = (sma + (std * 2)) - (sma - (std * 2))
 
-            # 3. Price Momentum
-            X_out[f'MOM_{w}'] = data.diff(w)
+            # 3. Rate of Change (ROC)
+            X_[f'ROC_{w}'] = X_['Close'].pct_change(periods=w) * 100
 
-            # 4. Relative Strength Index (RSI)
-            delta = data.diff()
-            u = pd.Series(np.where(delta > 0, delta, 0), index=delta.index)
-            d = pd.Series(np.where(delta < 0, -delta, 0), index=delta.index)
-            avg_gain = u.ewm(com=w - 1, adjust=False).mean()
-            avg_loss = d.ewm(com=w - 1, adjust=False).mean()
-            rs = avg_gain / avg_loss
-            X_out[f'RSI_{w}'] = 100 - (100 / (1 + rs))
-            
-            # 5. Simple Moving Average
-            X_out[f'MA_{w}'] = data.rolling(w, min_periods=w).mean()
+            # 4. Momentum (MOM)
+            X_[f'MOM_{w}'] = X_['Close'].diff(periods=w)
 
-        return X_out
+        # Drop the original 'Close' column so the model only learns from the indicators
+        X_ = X_.drop(columns=['Close'])
+        return X_.values
 
 class PairFeatureEngineer(BaseEstimator, TransformerMixin):
     def __init__(self, window=60):
@@ -213,4 +200,5 @@ class PairFeatureEngineer(BaseEstimator, TransformerMixin):
 
 # --- Usage Example ---
 # extractor = PairFeatureExtractor(window=60)
+
 # features_df = extractor.transform(data['AAPL'], data['MSFT'])
