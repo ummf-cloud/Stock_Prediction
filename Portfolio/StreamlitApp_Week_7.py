@@ -64,7 +64,7 @@ MODEL_INFO = {
         "endpoint": aws_endpoint,
         "explainer": 'shap_explainer.joblib', # Name from your notebook save
         "pipeline": 'finalized_pair_model.joblib',
-        "keys": feature_names,
+        "keys": ["z_score", "spread_std", "beta_stability", "return_lag"],
         "inputs": [{"name": k, "type": "number", "min": -5.0, "max": 5.0, "default": 0.0, "step": 0.1} for k in feature_names]
 }
 
@@ -144,18 +144,37 @@ with st.form("pred_form"):
     submitted = st.form_submit_button("Run Prediction")
 
 if submitted:
-
-    data_row = [user_inputs[k] for k in MODEL_INFO["keys"]]
-    # Prepare data
-    base_df = df_features
-    input_df = pd.concat([base_df, pd.DataFrame([data_row], columns=base_df.columns)])
+    # 1. Convert user inputs into a DataFrame/Array
+    # IMPORTANT: The order must match the keys in MODEL_INFO
+    input_data = np.array([[user_inputs[k] for k in MODEL_INFO["keys"]]])
     
-    res, status = call_model_api(input_df)
-    if status == 200:
-        st.metric("Prediction Result", res)
-        display_explanation(input_df,session, aws_bucket)
-    else:
-        st.error(res)
+    try:
+        # 2. Configure the Predictor
+        # We use the session we created earlier
+        predictor = Predictor(
+            endpoint_name=MODEL_INFO["endpoint"],
+            sagemaker_session=sm_session,
+            serializer=NumpySerializer(),
+            deserializer=NumpyDeserializer()
+        )
+
+        # 3. Call the endpoint
+        with st.spinner('Querying AWS SageMaker...'):
+            prediction = predictor.predict(input_data)
+
+        # 4. Display Results
+        st.success(f"Prediction Received: {prediction[0]}")
+        
+        # Mapping numerical output to human-readable labels
+        label_map = {0: "Hold / No Signal", 1: "Buy Signal", 2: "Sell Signal"}
+        st.metric("Signal Recommendation", label_map.get(prediction[0], "Unknown"))
+
+        # 5. Run SHAP (Optional - requires the explainer file)
+        # render_shap_visualization(input_data) # If you have this function defined
+
+    except Exception as e:
+        st.error(f"Prediction Error: {e}")
+
 
 
 
