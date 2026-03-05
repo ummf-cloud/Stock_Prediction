@@ -4,35 +4,35 @@ import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
 import posixpath
-
 import joblib
 import tarfile
 import tempfile
-
 import boto3
 import sagemaker
 from sagemaker.predictor import Predictor
-from sagemaker.serializers import CSVSerializer
-from sagemaker.deserializers import JSONDeserializer
 from sagemaker.serializers import NumpySerializer
 from sagemaker.deserializers import NumpyDeserializer
-
 from sklearn.pipeline import Pipeline
 import shap
-
 
 # Setup & Path Configuration
 warnings.simplefilter("ignore")
 
-# Fix path for Streamlit Cloud (ensure 'src' is findable)
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, '..'))
+# --- 1. CRITICAL PATH FIX FOR STREAMLIT CLOUD ---
+# This ensures Python looks in the root folder for the 'src' directory
+current_dir = os.path.dirname(os.path.abspath(__file__)) # Inside /Portfolio
+project_root = os.path.dirname(current_dir)             # Move up to root
 if project_root not in sys.path:
-    sys.path.append(project_root)
+    sys.path.insert(0, project_root)
 
-from src.feature_utils import extract_features
+# Import the correct function for pairs and the custom class
+try:
+    from src.feature_utils import extract_features_pair
+    from src.Custom_Classes import PairFeatureEngineer
+except ImportError as e:
+    st.error(f"Import Error: {e}. Check if 'src/__init__.py' exists in GitHub.")
 
-# Access the secrets
+# Access secrets
 aws_id = st.secrets["aws_credentials"]["AWS_ACCESS_KEY_ID"]
 aws_secret = st.secrets["aws_credentials"]["AWS_SECRET_ACCESS_KEY"]
 aws_token = st.secrets["aws_credentials"]["AWS_SESSION_TOKEN"]
@@ -40,7 +40,7 @@ aws_bucket = st.secrets["aws_credentials"]["AWS_BUCKET"]
 aws_endpoint = st.secrets["aws_credentials"]["AWS_ENDPOINT"]
 
 # AWS Session Management
-@st.cache_resource # Use this to avoid downloading the file every time the page refreshes
+@st.cache_resource
 def get_session(aws_id, aws_secret, aws_token):
     return boto3.Session(
         aws_access_key_id=aws_id,
@@ -52,15 +52,20 @@ def get_session(aws_id, aws_secret, aws_token):
 session = get_session(aws_id, aws_secret, aws_token)
 sm_session = sagemaker.Session(boto_session=session)
 
-# Data & Model Configuration
-df_features = extract_features()
+# --- 2. DATA & MODEL CONFIGURATION ---
+# Use the pair extraction function
+df_features = extract_features_pair() 
+
+# Update keys to match the features your model was trained on
+# These names must match the output columns of your PairFeatureEngineer
+feature_names = ["z_score", "spread_std", "beta_stability", "return_lag"]
 
 MODEL_INFO = {
         "endpoint": aws_endpoint,
-        "explainer": 'explainer.shap',
-        "pipeline": 'finalized_model.tar.gz',
-        "keys": ["MPWR", "AAPL"],
-        "inputs": [{"name": k, "type": "number", "min": 0.0, "max": 1.0, "default": 0.0, "step": 10.0} for k in ["MPWR", "AAPL"]]
+        "explainer": 'shap_explainer.joblib', # Name from your notebook save
+        "pipeline": 'finalized_pair_model.joblib',
+        "keys": feature_names,
+        "inputs": [{"name": k, "type": "number", "min": -5.0, "max": 5.0, "default": 0.0, "step": 0.1} for k in feature_names]
 }
 
 def load_pipeline(_session, bucket, key):
@@ -151,6 +156,7 @@ if submitted:
         display_explanation(input_df,session, aws_bucket)
     else:
         st.error(res)
+
 
 
 
