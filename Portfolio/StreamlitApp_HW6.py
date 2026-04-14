@@ -107,16 +107,16 @@ def call_model_api(input_df):
 
     try:
         # For regression
-        # raw_pred = predictor.predict(input_df)
-        # pred_val = pd.DataFrame(raw_pred).values[-1][0]
-        # return round(float(pred_val), 4), 200
-        # For classification
         raw_pred = predictor.predict(input_df)
         pred_val = pd.DataFrame(raw_pred).values[-1][0]
-        mapping = {-1: "SELL", 0: "HOLD", 1: "BUY"}
-        return mapping.get(pred_val), 200
-    except Exception as e:
-        return f"Error: {str(e)}", 500
+        return round(float(pred_val), 4), 200
+        # For classification
+        #raw_pred = predictor.predict(input_df)
+        #pred_val = pd.DataFrame(raw_pred).values[-1][0]
+        #mapping = {-1: "SELL", 0: "HOLD", 1: "BUY"}
+        #return mapping.get(pred_val), 200
+    #except Exception as e:
+        #return f"Error: {str(e)}", 500
 
 # Local Explainability
 def display_explanation(input_df, session, aws_bucket):
@@ -132,12 +132,14 @@ def display_explanation(input_df, session, aws_bucket):
     
     st.subheader("🔍 Decision Transparency (SHAP)")
     fig, ax = plt.subplots(figsize=(10, 4))
-    #shap.plots.waterfall(shap_values[0], max_display=10)
-    shap.plots.waterfall(shap_values[0, :, 0])
+    #shap.plots.waterfall(shap_values[0], max_display=10) #regression
+    shap.plots.waterfall(shap_values[0, :, 0]) #classification
     st.pyplot(fig)
     # top feature 
-    # top_feature = pd.Series(shap_values[0].values, index=shap_values[0].feature_names).abs().idxmax()
-    top_feature = pd.Series(shap_values[0, :, 0].values, index=shap_values[0, :, 0].feature_names).abs().idxmax()
+    # regression
+    top_feature = pd.Series(shap_values[0].values, index=shap_values[0].feature_names).abs().idxmax()
+    #classification
+    #top_feature = pd.Series(shap_values[0, :, 0].values, index=shap_values[0, :, 0].feature_names).abs().idxmax()
     st.info(f"**Business Insight:** The most influential factor in this decision was **{top_feature}**.")
 
 
